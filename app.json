@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Green Berry - Learn English effectively for kids",
+    "slug": "green-berry",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "buildNumber": "1.0.0",
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vutuansw.greenberry",
+      "entitlements": {
+        "com.apple.developer.networking.wifi-info": "true"
+      }
+    },
+    "android": {
+      "package": "com.vutuansw.greenberry",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
