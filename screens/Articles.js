@@ -1,25 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl,StyleSheet, Image } from "react-native";
+import React, { useState, useEffect,useContext } from 'react';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, StyleSheet, Image } from "react-native";
 import { Audio } from 'expo-av';
 import Spinner from 'react-native-loading-spinner-overlay';
+import NetInfo from '@react-native-community/netinfo';
+import Offline from './../components/Offline';
+import Notfound from '../components/Notfound';
+import { ThemeContext } from '../components/context';
 
 const Articles = ({ navigation, route }) => {
 
     const API_URL = 'https://vutuansw.github.io/hoctuvung/';
-    const API_DATA = API_URL+'data/'+route.params.id+'.json';
-    const API_IMAGE = API_URL+'images/'+route.params.id+'/';
-    const API_AUDIO = API_URL+'audios/'+route.params.id+'/';
+    const API_DATA = API_URL + 'data/' + route.params.id + '.json';
+    const API_IMAGE = API_URL + 'images/' + route.params.id + '/';
+    const API_AUDIO = API_URL + 'audios/' + route.params.id + '/';
+    const theme = useContext(ThemeContext);
 
     let [isLoading, setLoading] = useState(true);
     let [isRefresh, setRefresh] = useState(false);
+    let [isOffline, setIsOffline] = useState(false);
     let [data, setData] = useState(null);
     let [sound, setSound] = React.useState();
     let [isPlaying, setIsPlaying] = useState(false);
-    
+
 
     async function playSound(fileName) {
 
-        if(isPlaying){
+        if (isPlaying) {
             return;
         }
 
@@ -37,120 +43,137 @@ const Articles = ({ navigation, route }) => {
             { uri: API_AUDIO + fileName },
             { shouldPlay: false }
         );
-        
+
         setSound(sound);
         setIsPlaying(true);
-        await sound.playAsync().then(()=>{
+        await sound.playAsync().then(() => {
             setIsPlaying(false);
         });
-       
+
     }
 
     let imageUrl = (image) => {
         return API_IMAGE + image;
     }
 
-    const fetchData = (v)=>{
+    const fetchData = (v) => {
         fetch(API_DATA + v)
             .then((response) => response.json())
             .then((json) => {
                 setData(json)
-               
+
             })
             .catch((error) => {
-                console.error('Err:',error)
+                console.error('Err:', error)
             })
             .finally(() => {
                 setLoading(false);
                 setRefresh(false);
             });
     }
-    
+
+    const checkConnection = () => {
+
+        NetInfo.fetch().then(state => {
+            setIsOffline(!state.isConnected);
+            if (state.isConnected) {
+                fetchData('?v=1.0.6');
+            }
+        });
+    }
+
     const handleRefresh = () => {
-        setRefresh(true);
-        fetchData('?v=' + new Date().getTime());
+        if (!isOffline) {
+            setRefresh(true);
+            fetchData('?v=' + new Date().getTime());
+        }
+    }
+
+    const getStyles = (name) => {
+        return [styles[name], theme.color=='dark'? dark[name]:null];
     }
 
     useEffect(() => {
-        fetchData('?v=1.0.6');
+        checkConnection();
     }, [sound]);
 
-
     return (
-        <View style={[styles.container,route.params.theme=='dark'?styles.article_dark:null]}>
-           
-            {data!=null ? (
-                <FlatList
-                    style={[styles.article]}
-                    data={data.data}
-                    renderItem={({ item, index }) => <TouchableOpacity key={index} style={[styles.article__item,route.params.theme=='dark'?styles.article__item_dark:null]}
-                        onPress={() => playSound(item.audio)}>
-                        <Image style={styles.article__image} source={{ uri: imageUrl(item.image) }} />
-                        <Text style={[styles.article__name,route.params.theme=='dark'?styles.colorLight:null]}>{item.name}</Text>
-                        <Text style={[styles.article__spelling,route.params.theme=='dark'?styles.colorSecondLight:null]}>Spelling: {item.spelling}</Text>
-                    </TouchableOpacity>}
-                    keyExtractor={(item, index) => index.toString()}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isRefresh}
-                            onRefresh={handleRefresh}
-                            tintColor="#8dc54a" />
+
+        <View style={getStyles('container')}>
+            {!isOffline ? (
+                <View>
+                    {data != null ? (
+                        <FlatList
+                            style={[styles.article]}
+                            data={data.data}
+                            numColumns={1}
+                            renderItem={({ item, index }) => <TouchableOpacity key={index} style={getStyles('article__item')}
+                                onPress={() => playSound(item.audio)}>
+                                <View style={styles.article__image_container}>
+                                    <Image style={[styles.article__image,!theme.toggleImages?{opacity:0}:null]} source={{ uri: imageUrl(item.image) }} />
+                                </View>
+                                <Text style={getStyles('article__name')}>{item.name}</Text>
+                                <Text style={getStyles('article__spelling')}>Spelling: {item.spelling}</Text>
+                            </TouchableOpacity>}
+                            keyExtractor={(item, index) => index.toString()}
+                            refreshControl={
+                                <RefreshControl
+                                    refreshing={isRefresh}
+                                    onRefresh={handleRefresh}
+                                    tintColor="#8dc54a" />
+                            }
+                        />
+                    ) : !isLoading ? (
+                        <Notfound></Notfound>) : <Spinner
+                        visible={true}
+                        color={'#8dc54a'}
+                        animation={'fade'}
+                        overlayColor={'rgba(255, 255, 255, .3)'}
+                    />
                     }
-                />
-            ) :!isLoading?(
-                <View style={styles.notfound}>
-                    <Text style={styles.notfound__heading}>
-                        :-\
-                    </Text>
-                    <Text style={styles.notfound__desc}>
-                        404 Not Found
-                    </Text>
-                </View>):<Spinner 
-           visible={true} 
-           color={'#8dc54a'} 
-           animation={'fade'} 
-           overlayColor={'rgba(255, 255, 255, .3)'} 
-           />
+                </View>
+            ) :
+                <Offline checkConnection={checkConnection}></Offline>
             }
         </View>
     )
 }
+
+const dark = StyleSheet.create({
+    container: {
+        backgroundColor: '#444444'
+    },
+    article: {
+        color: '#eee',
+        backgroundColor: '#444'
+    },
+    article__item: {
+        backgroundColor: '#666'
+    },
+    article__name: {
+        color: '#eee'
+    },
+    article__spelling: {
+        color: '#ccc',
+    }
+});
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f1f1f1',  
-    },
-    notfound:{
-        marginTop:-150
-    },
-    notfound__heading: {
-        fontSize: 70,
-        fontWeight:'900',
-        color: '#8dc54a',
-        textAlign:'center'
-    },
-    notfound__desc: {
-        fontSize: 16,
-        color: '#8dc54a',
-        textAlign:'center',
-        marginTop:20,
-        fontWeight:'bold',
+        backgroundColor: '#f1f1f1',
     },
     article: {
         width: '100%',
-          
-    },
-    article_dark:{
-        backgroundColor: '#444',        
     },
     article__item: {
         backgroundColor: '#fff',
         marginBottom: 12,
         padding: 20,
         shadowColor: "#000",
+        width: '100%',
         shadowOffset: {
             width: 0,
             height: 1,
@@ -159,21 +182,14 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
         elevation: 6,
     },
-    article__item_dark:{
-        backgroundColor: '#666',
-    },
-    colorLight:{
-        color:'#eee'
-    },
-    colorSecondLight:{
-        color:'#ccc'
+    article__image_container:{
+        backgroundColor: '#99b9b6'
     },
     article__image: {
         width: '100%',
         height: null,
         aspectRatio: 800 / 503,
         resizeMode: 'cover',
-        backgroundColor:'#99b9b6'
     },
     article__name: {
         marginTop: 10,
@@ -185,7 +201,7 @@ const styles = StyleSheet.create({
     article__spelling: {
         color: '#444',
         textAlign: 'center'
-    }
+    },
 });
 
 export default Articles;
